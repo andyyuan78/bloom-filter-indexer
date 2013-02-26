@@ -8,11 +8,11 @@
 
 # - Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# - Redistributions in binary form must reproduce the above copyright notice, 
-#   this list of conditions and the following disclaimer in the documentation 
+# - Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
 # - Neither the name of the <ORGANIZATION> nor the names of its contributors
-#   may be used to endorse or promote products derived from this software 
+#   may be used to endorse or promote products derived from this software
 #   without specific prior written permission.
 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -30,15 +30,26 @@
 _DEBUG = True
 
 import sys
-import os
 import csv
 from collections import defaultdict
-from pybloom import BloomFilter
 from isdomain import is_domain
+
+try:
+    from pybloom import BloomFilter
+except ImportError, e:
+    sys.stderr.write("\nError: Failed to import pybloom: %s\n"
+                     "Have you installed 'python-bloomfilter'?\n\n" % e)
+    sys.exit(1)
+
 
 def main():
     usage()
-    create_index('test_data/names.csv', 0.00001, 1, [1, 2], ';', True)
+    in_filename = 'sample/python-bloom-indexer-sample.csv'
+    with open(in_filename, 'r') as csvfile:
+        result = create_index(in_filename, csvfile,
+                              0.00001, 1, [1, 2], ';', True)
+        print(result)
+
 
 def usage():
     text = (
@@ -56,24 +67,32 @@ def usage():
             sys.argv[0],))
     sys.stderr.write(text)
 
+
 def debug(text):
     if _DEBUG:
         sys.stderr.write(text)
 
-def create_index(in_filename, error_rate, skip_lines, limit_columns,
-        delimiter, recursive_domains):
 
-    with open(in_filename, 'rb') as csvfile:
-        column_values_map = parse_csv_file(
-                csvfile, delimiter, recursive_domains, limit_columns, skip_lines)
+def create_index(in_filename, csvfile, error_rate, skip_lines, limit_columns,
+                 delimiter, recursive_domains):
 
+    column_values_map = parse_csv_file(
+        csvfile, delimiter, recursive_domains, limit_columns, skip_lines)
+
+    index_stats = {}
     for (column_number, values) in column_values_map.items():
-        bloom = create_bloom_filter(values, error_rate=error_rate)
+        (bloom, num_added) = create_bloom_filter(values, error_rate=error_rate)
 
-        write_bloom_filter(bloom, out_filename(in_filename, column_number))
+        out_fn = out_filename(in_filename, column_number)
+        index_stats[out_fn] = num_added
+
+        write_bloom_filter(bloom, out_fn)
+
+    return index_stats
+
 
 def parse_csv_file(csvfile, delimiter, recursive_domains, limit_columns,
-        skip_lines):
+                   skip_lines):
     """
     Opens the file-like-object with the CSV reader module and advances past
     the specified number of header lines. Uses another function to process
@@ -85,6 +104,7 @@ def parse_csv_file(csvfile, delimiter, recursive_domains, limit_columns,
 
     return get_values_by_column(csv_reader, limit_columns, recursive_domains)
 
+
 def get_values_by_column(csv_reader, limit_columns, expand_domains=False):
     """
     From a CSV reader object, returns a dictionary where the column number
@@ -94,11 +114,11 @@ def get_values_by_column(csv_reader, limit_columns, expand_domains=False):
 
     >>> get_values_by_column([['Red', 'Apple'], ['Blue', 'Banana']], None)
     {1: ['Red', 'Blue'], 2: ['Apple', 'Banana']}
-    
+
     >>> get_values_by_column([['Red', 'Apple'], ['Blue', 'Banana']], [1])
     {1: ['Red', 'Blue']}
     """
-        
+
     data = defaultdict(list)
     for row in csv_reader:
         for (column_number, value) in enumerate(row, start=1):
@@ -112,10 +132,12 @@ def get_values_by_column(csv_reader, limit_columns, expand_domains=False):
 
     return dict(data)
 
+
 def skip_header_lines(csv_reader, num_lines):
     """Advance the CSV reader object by num_lines to skip over headers."""
     for i in xrange(num_lines):
         debug("Skipping %s\n" % csv_reader.next())
+
 
 def recurse_domain(domain):
     """
@@ -133,6 +155,7 @@ def recurse_domain(domain):
         sub_parts.append('.'.join(parts[num_parts:]))
     return sub_parts
 
+
 def out_filename(in_filename, column_number):
     """
     Return the output filename for this input filename and column.
@@ -140,6 +163,7 @@ def out_filename(in_filename, column_number):
     'test.csv.1.bfindex'
     """
     return "%s.%d.bfindex" % (in_filename, column_number)
+
 
 def create_bloom_filter(values, error_rate):
     """
@@ -152,12 +176,12 @@ def create_bloom_filter(values, error_rate):
     debug("Creating bloom filter, capacity=%d, error_rate=%f (%.4f%%)\n" % (
         len(value_set), error_rate, 100 * error_rate))
     b = BloomFilter(capacity=len(value_set), error_rate=error_rate)
-    [b.add(value) for value in value_set]
     for value in value_set:
         debug("Adding '%s'\n" % value)
         b.add(value)
 
-    return b
+    return (b, len(value_set))
+
 
 def write_bloom_filter(bloom_filter, out_filename):
     """Write a BloomFilter instance to the given filename."""
