@@ -36,6 +36,11 @@ DEFAULT_INDEX_DOMAINS_RECURSIVELY = False
 
 _VERBOSE = False       # switched by the --verbose argument
 
+_EXITCODE_OK = 0
+_EXITCODE_IMPORT_ERROR = 1
+_EXITCODE_INVALID_ARG = 2
+_EXITCODE_MISSING_ARG = 3
+
 import os
 import sys
 import csv
@@ -48,7 +53,7 @@ try:
 except ImportError, e:
     sys.stderr.write("\nError: Failed to import pybloom: %s\n"
                      "Have you installed 'python-bloomfilter'?\n\n" % e)
-    sys.exit(1)
+    sys.exit(_EXITCODE_IMPORT_ERROR)
 
 
 class InvalidArgument(Exception):
@@ -66,11 +71,11 @@ def main():
     except InvalidArgument, e:
         sys.stderr.write("\nInvalid argument: %s\n" % e)
         usage()
-        sys.exit(2)
+        sys.exit(_EXITCODE_INVALID_ARG)
     except MissingArgument, e:
         sys.stderr.write("\nMissing required argument(s): %s\n" % e)
         usage()
-        sys.exit(3)
+        sys.exit(_EXITCODE_MISSING_ARG)
 
     with open(config['infile'], 'r') as csvfile:
         result = create_index(
@@ -101,7 +106,7 @@ def parse_arguments(argv):
     except getopt.GetoptError as err:
         sys.stderr.write("%s\n" % err)
         usage()
-        sys.exit(1)
+        sys.exit(_EXITCODE_INVALID_ARG)
 
     config = {
         'infile': DEFAULT_INFILE,
@@ -137,7 +142,7 @@ def parse_arguments(argv):
 
         elif opt in ('-h', '--help'):
             usage()
-            sys.exit(1)
+            sys.exit(_EXITCODE_OK)
 
     if None in config.values():
         raise MissingArgument(', '.join([key for key, value in config.items()
