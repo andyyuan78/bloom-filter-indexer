@@ -1,0 +1,6 @@
+#Line to be skipped as well as the second
+country;domain;md5;as
+BE;bad.www.google.com;936FEB234F60CFBF6916BA61FBAB2782;15169
+NL;badboy2.www.yahoo.net;936FEB234FFD48BF6916BA61FBAB2782;15167
+UK;bad.www.google.co.uk;936FEB234F60CFBF6916BA61FBAB2782;1
+DE;bad.www.crazyhacker.de;936FEB234F60CFBF6916BA61FBAB2782;15169
