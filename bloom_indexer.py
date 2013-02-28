@@ -27,10 +27,19 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-_DEBUG = True
+DEFAULT_INFILE = None  # None makes this argument mandatory
+DEFAULT_FIELDS = None  # None makes this argument mandatory
+DEFAULT_SKIP_LINES = 1
+DEFAULT_FALSE_POSITIVE_RATE = 0.00001
+DEFAULT_DELIMITER = ';'
+DEFAULT_INDEX_DOMAINS_RECURSIVELY = False
 
+_VERBOSE = False       # switched by the --verbose argument
+
+import os
 import sys
 import csv
+import getopt
 from collections import defaultdict
 from isdomain import is_domain
 
@@ -42,39 +51,210 @@ except ImportError, e:
     sys.exit(1)
 
 
+class InvalidArgument(Exception):
+    pass
+
+
+class MissingArgument(Exception):
+    pass
+
+
 def main():
-    usage()
-    in_filename = 'sample/python-bloom-indexer-sample.csv'
-    with open(in_filename, 'r') as csvfile:
-        result = create_index(in_filename, csvfile,
-                              0.00001, 1, [1, 2], ';', True)
-        print(result)
+    try:
+        config = parse_arguments(sys.argv)
+
+    except InvalidArgument, e:
+        sys.stderr.write("\nInvalid argument: %s\n" % e)
+        usage()
+        sys.exit(2)
+    except MissingArgument, e:
+        sys.stderr.write("\nMissing required argument(s): %s\n" % e)
+        usage()
+        sys.exit(3)
+
+    with open(config['infile'], 'r') as csvfile:
+        result = create_index(
+            config['infile'],
+            csvfile,
+            config['false-positive-rate'],
+            config['skip-lines'],
+            config['fields'],
+            config['delimiter'],
+            config['index-domains-recursively'])
+
+    for (outfile, num_entries) in result.items():
+        debug("%s : %s\n" % (outfile, num_entries))
+
+
+def parse_arguments(argv):
+    """
+    Parse out whatever arguments are available on the command line and call the
+    approriate validate function on them. Throw InvalidArgument or
+    MissingArgument.
+    """
+    try:
+        (opts, args) = getopt.getopt(
+            argv[1:],
+            "i:f:s:e:d:rh",
+            ['infile=', 'fields=', 'skip-lines=', 'false-positive-rate=',
+             'delimiter=', 'index-domains-recursively', 'fields=', 'help'])
+    except getopt.GetoptError as err:
+        sys.stderr.write("%s\n" % err)
+        usage()
+        sys.exit(1)
+
+    config = {
+        'infile': DEFAULT_INFILE,
+        'fields': DEFAULT_FIELDS,
+        'skip-lines': DEFAULT_SKIP_LINES,
+        'false-positive-rate': DEFAULT_FALSE_POSITIVE_RATE,
+        'delimiter': DEFAULT_DELIMITER,
+        'index-domains-recursively': DEFAULT_INDEX_DOMAINS_RECURSIVELY,
+    }
+
+    for (opt, arg) in opts:
+        if opt in ('-i', '--infile'):
+            config['infile'] = validate_infile(arg)
+
+        elif opt in ('-f', '--fields'):
+            config['fields'] = validate_fields(arg)
+
+        elif opt in ('-s', '--skip-lines'):
+            config['skip-lines'] = validate_skip_lines(arg)
+
+        elif opt in ('-e', '--false-positive-rate'):
+            config['false-positive-rate'] = validate_false_positive_rate(arg)
+
+        elif opt in ('-d', '--delimiter'):
+            config['delimiter'] = validate_delimiter(arg)
+
+        elif opt in ('-r', '--index-domains-recursively'):
+            config['index-domains-recursively'] = True
+
+        elif opt in ('-v', '--verbose'):
+            global _VERBOSE
+            _VERBOSE = True
+
+        elif opt in ('-h', '--help'):
+            usage()
+            sys.exit(1)
+
+    if None in config.values():
+        raise MissingArgument(', '.join([key for key, value in config.items()
+                                         if value is None]))
+    return config
+
+
+def validate_infile(arg):
+    """Validate that the filename is a valid file."""
+    if not os.path.isfile(arg):
+        raise InvalidArgument("infile is not a file: '%s'" % arg)
+    return arg
+
+
+def validate_false_positive_rate(arg):
+    """
+    Convert to float and validate it's positive.
+    >>> validate_false_positive_rate('0.25')
+    0.25
+    """
+    try:
+        rate = float(arg)
+    except ValueError:
+        raise InvalidArgument("false-positive-rate not a float: '%s'" % arg)
+
+    if rate < 0:
+        raise InvalidArgument("false-positive rate cannot be < 0: '%s'" % arg)
+
+    return rate
+
+
+def validate_delimiter(arg):
+    """Validate that the delimiter is a single character."""
+    if len(arg) != 1:
+        raise InvalidArgument("delimiter not a single character: '%s'" % arg)
+    return arg
+
+
+def validate_fields(arg):
+    """
+    Convert a comma-separated string of integers into a list, checking that
+    each is greater than zero.
+
+    >>> validate_fields('1,2,3')
+    [1, 2, 3]
+
+    >>> validate_fields('foo')
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: fields not a list of integers: 'foo'
+
+    >>> validate_fields('0,1,2')
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: fields must all be > zero: '0,1,2'
+    """
+    try:
+        fields = [int(field) for field in arg.split(',')]
+    except ValueError:
+        raise InvalidArgument("fields not a list of integers: '%s'" % arg)
+
+    if len(filter(lambda x: x <= 0, fields)):
+        raise InvalidArgument("fields must all be > zero: '%s'" % arg)
+
+    return fields
+
+
+def validate_skip_lines(arg):
+    """Convert to integer and validate that the value is >= 0"""
+    try:
+        lines = int(arg)
+    except ValueError:
+        raise InvalidArgument("skip-lines not an integer: '%s'" % arg)
+
+    if lines < 0:
+        raise InvalidArgument("skip-lines must be positive: '%s'" % arg)
+
+    return lines
 
 
 def usage():
     text = (
-        "\nUsage: %s --infile=<file.csv> --fields=1,2,3\n\n"
+        "\nUsage: %s --infile=<file.csv> --fields=1,2,5\n\n"
+        "  -i, --infile=FILENAME            "
+        "open the CSV given by FILENAME\n"
         "  -f, --fields=field1,field2       "
-        "fields/columns to index, default all\n"
+        "fields/columns to index, eg 1,2,5\n"
+        "  -s, --skip-lines=NUMBER          "
+        "skip NUMBER rows of header data from the top of the CSV file\n"
         "  -e, --false-positive-rate=RATE   "
-        "error rate of bloom filter, default 0.00001\n"
+        "error rate of bloom filter, [default %f]\n"
         "  -d, --delimiter=SYMBOL           "
-        "CSV delimiter character, default ;\n"
+        "CSV delimiter character [default %s]\n"
         "  -r, --index-domains-recursively  "
-        "expand domains to subdomain components.\n"
+        "expand domains to subdomain components [default %s].\n"
+        "  -v, --verbose                    "
+        "produce output to stderr\n"
         "  -h, --help                       "
         "display this message.\n\n" % (
-            sys.argv[0],))
+            sys.argv[0], DEFAULT_FALSE_POSITIVE_RATE, DEFAULT_DELIMITER,
+            DEFAULT_INDEX_DOMAINS_RECURSIVELY))
     sys.stderr.write(text)
 
 
 def debug(text):
-    if _DEBUG:
+    """Print text to stderr if _VERBOSE has been set."""
+    if _VERBOSE:
         sys.stderr.write(text)
 
 
-def create_index(in_filename, csvfile, error_rate, skip_lines, limit_columns,
+def create_index(infile, csvfile, error_rate, skip_lines, limit_columns,
                  delimiter, recursive_domains):
+    """
+    Parse the file-like object given by csvfile using the csv module. Add each
+    unique entry in each field/column (specified by limit_columns) to a bloom
+    filter and save with a filename derived from the input filenamd and field.
+    """
 
     column_values_map = parse_csv_file(
         csvfile, delimiter, recursive_domains, limit_columns, skip_lines)
@@ -83,7 +263,7 @@ def create_index(in_filename, csvfile, error_rate, skip_lines, limit_columns,
     for (column_number, values) in column_values_map.items():
         (bloom, num_added) = create_bloom_filter(values, error_rate=error_rate)
 
-        out_fn = out_filename(in_filename, column_number)
+        out_fn = out_filename(infile, column_number)
         index_stats[out_fn] = num_added
 
         write_bloom_filter(bloom, out_fn)
@@ -156,13 +336,13 @@ def recurse_domain(domain):
     return sub_parts
 
 
-def out_filename(in_filename, column_number):
+def out_filename(infile, column_number):
     """
     Return the output filename for this input filename and column.
     >>> out_filename('test.csv', 1)
     'test.csv.1.bfindex'
     """
-    return "%s.%d.bfindex" % (in_filename, column_number)
+    return "%s.%d.bfindex" % (infile, column_number)
 
 
 def create_bloom_filter(values, error_rate):
