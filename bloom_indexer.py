@@ -56,6 +56,16 @@ except ImportError, e:
     sys.exit(_EXITCODE_IMPORT_ERROR)
 
 
+class Conf:
+    """Provides the keys to the config dictionary."""
+    Infile = 'infile'
+    FalsePositiveRate = 'false-positive-rate'
+    SkipLines = 'skip-lines'
+    Fields = 'fields'
+    Delimiter = 'delimiter'
+    IndexDomainsRecursively = 'index-domains-recursively'
+
+
 class InvalidArgument(Exception):
     pass
 
@@ -77,15 +87,15 @@ def main():
         usage()
         sys.exit(_EXITCODE_MISSING_ARG)
 
-    with open(config['infile'], 'r') as csvfile:
+    with open(config[Conf.Infile], 'r') as csvfile:
         result = create_index(
-            config['infile'],
+            config[Conf.Infile],
             csvfile,
-            config['false-positive-rate'],
-            config['skip-lines'],
-            config['fields'],
-            config['delimiter'],
-            config['index-domains-recursively'])
+            config[Conf.FalsePositiveRate],
+            config[Conf.SkipLines],
+            config[Conf.Fields],
+            config[Conf.Delimiter],
+            config[Conf.IndexDomainsRecursively])
 
     for (outfile, num_entries) in result.items():
         debug("%s : %s\n" % (outfile, num_entries))
@@ -109,32 +119,32 @@ def parse_arguments(argv):
         sys.exit(_EXITCODE_INVALID_ARG)
 
     config = {
-        'infile': DEFAULT_INFILE,
-        'fields': DEFAULT_FIELDS,
-        'skip-lines': DEFAULT_SKIP_LINES,
-        'false-positive-rate': DEFAULT_FALSE_POSITIVE_RATE,
-        'delimiter': DEFAULT_DELIMITER,
-        'index-domains-recursively': DEFAULT_INDEX_DOMAINS_RECURSIVELY,
+        Conf.Infile: DEFAULT_INFILE,
+        Conf.Fields: DEFAULT_FIELDS,
+        Conf.SkipLines: DEFAULT_SKIP_LINES,
+        Conf.FalsePositiveRate: DEFAULT_FALSE_POSITIVE_RATE,
+        Conf.Delimiter: DEFAULT_DELIMITER,
+        Conf.IndexDomainsRecursively: DEFAULT_INDEX_DOMAINS_RECURSIVELY,
     }
 
     for (opt, arg) in opts:
         if opt in ('-i', '--infile'):
-            config['infile'] = validate_infile(arg)
+            config[Conf.Infile] = validate_infile(arg)
 
         elif opt in ('-f', '--fields'):
-            config['fields'] = validate_fields(arg)
+            config[Conf.Fields] = validate_fields(arg)
 
         elif opt in ('-s', '--skip-lines'):
-            config['skip-lines'] = validate_skip_lines(arg)
+            config[Conf.SkipLines] = validate_skip_lines(arg)
 
         elif opt in ('-e', '--false-positive-rate'):
-            config['false-positive-rate'] = validate_false_positive_rate(arg)
+            config[Conf.FalsePositiveRate] = validate_false_positive_rate(arg)
 
         elif opt in ('-d', '--delimiter'):
-            config['delimiter'] = validate_delimiter(arg)
+            config[Conf.Delimiter] = validate_delimiter(arg)
 
         elif opt in ('-r', '--index-domains-recursively'):
-            config['index-domains-recursively'] = True
+            config[Conf.IndexDomainsRecursively] = True
 
         elif opt in ('-v', '--verbose'):
             global _VERBOSE
