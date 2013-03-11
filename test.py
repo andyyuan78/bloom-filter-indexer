@@ -1,9 +1,12 @@
+#!/usr/bin/python
 import unittest
-from bloom_indexer import (parse_arguments, create_index, InvalidArgument,
-                           MissingArgument)
+import os
+import glob
 
 from cStringIO import StringIO
 from pybloom import BloomFilter
+
+from bloom_indexer import (parse_arguments, create_index, MissingArgument)
 
 TEST_FILE_CONTENT = (
     "FieldA,FieldB,FieldC\n"
@@ -18,6 +21,10 @@ TEST_FILE_CONTENT = (
 class TopLevelTest(unittest.TestCase):
     def setUp(self):
         self.test_file = StringIO(TEST_FILE_CONTENT)
+
+    def tearDown(self):
+        for tmpfile in glob.glob('/tmp/fake.csv.*.bfindex'):
+            os.unlink(tmpfile)
 
     def test_insert_then_test(self):
         result = create_index(
