@@ -82,10 +82,14 @@ def main():
         sys.stderr.write("\nInvalid argument: %s\n" % e)
         usage()
         sys.exit(_EXITCODE_INVALID_ARG)
+
     except MissingArgument, e:
         sys.stderr.write("\nMissing required argument(s): %s\n" % e)
         usage()
         sys.exit(_EXITCODE_MISSING_ARG)
+
+    if not config:
+        sys.exit(_EXITCODE_OK)
 
     with open(config[Conf.Infile], 'r') as csvfile:
         result = create_index(
@@ -153,7 +157,7 @@ def parse_arguments(argv):
 
         elif opt in ('-h', '--help'):
             usage()
-            sys.exit(_EXITCODE_OK)
+            return None
 
     if None in config.values():
         raise MissingArgument(', '.join([key for key, value in config.items()
