@@ -112,7 +112,7 @@ def parse_arguments(argv):
             argv[1:],
             "i:f:s:e:d:rh",
             ['infile=', 'fields=', 'skip-lines=', 'false-positive-rate=',
-             'delimiter=', 'index-domains-recursively', 'fields=', 'help'])
+             'delimiter=', 'index-domains-recursively', 'help'])
     except getopt.GetoptError as err:
         sys.stderr.write("%s\n" % err)
         usage()
@@ -161,7 +161,14 @@ def parse_arguments(argv):
 
 
 def validate_infile(arg):
-    """Validate that the filename is a valid file."""
+    """
+    Validate that the filename is a valid file.
+
+    >>> validate_infile('/non/existent/file')
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: infile is not a file: '/non/existent/file'
+    """
     if not os.path.isfile(arg):
         raise InvalidArgument("infile is not a file: '%s'" % arg)
     return arg
@@ -172,6 +179,10 @@ def validate_false_positive_rate(arg):
     Convert to float and validate it's positive.
     >>> validate_false_positive_rate('0.25')
     0.25
+    >>> validate_false_positive_rate('-0.5')
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: false-positive rate cannot be < 0: '-0.5'
     """
     try:
         rate = float(arg)
@@ -185,7 +196,13 @@ def validate_false_positive_rate(arg):
 
 
 def validate_delimiter(arg):
-    """Validate that the delimiter is a single character."""
+    """
+    Validate that the delimiter is a single character.
+    >>> validate_delimiter(';;')
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: delimiter not a single character: ';;'
+    """
     if len(arg) != 1:
         raise InvalidArgument("delimiter not a single character: '%s'" % arg)
     return arg
@@ -221,7 +238,13 @@ def validate_fields(arg):
 
 
 def validate_skip_lines(arg):
-    """Convert to integer and validate that the value is >= 0"""
+    """
+    Convert to integer and validate that the value is >= 0
+    >>> validate_skip_lines(-1)
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: skip-lines must be positive: '-1'
+    """
     try:
         lines = int(arg)
     except ValueError:
@@ -366,7 +389,7 @@ def create_bloom_filter(values, error_rate):
     given by the number of unique items in values. Add each value in values
     to the BloomFilter and return.
     """
-    value_set = set(values)
+    value_set = set(filter(lambda x: len(x), values))
 
     debug("Creating bloom filter, capacity=%d, error_rate=%f (%.4f%%)\n" % (
         len(value_set), error_rate, 100 * error_rate))
