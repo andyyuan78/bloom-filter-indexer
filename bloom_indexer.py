@@ -98,7 +98,7 @@ def main():
             config[Conf.IndexDomainsRecursively])
 
     for (outfile, num_entries) in result.items():
-        debug("%s : %s\n" % (outfile, num_entries))
+        debug("%s : %s entries\n" % (outfile, num_entries))
 
 
 def parse_arguments(argv):
@@ -110,9 +110,9 @@ def parse_arguments(argv):
     try:
         (opts, args) = getopt.getopt(
             argv[1:],
-            "i:f:s:e:d:rh",
+            "i:f:s:e:d:rhv",
             ['infile=', 'fields=', 'skip-lines=', 'false-positive-rate=',
-             'delimiter=', 'index-domains-recursively', 'help'])
+             'delimiter=', 'index-domains-recursively', 'help', 'verbose'])
     except getopt.GetoptError as err:
         sys.stderr.write("%s\n" % err)
         usage()
