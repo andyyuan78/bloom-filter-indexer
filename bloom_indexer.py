@@ -114,9 +114,10 @@ def parse_arguments(argv):
             ['infile=', 'fields=', 'skip-lines=', 'false-positive-rate=',
              'delimiter=', 'index-domains-recursively', 'help', 'verbose'])
     except getopt.GetoptError as err:
-        sys.stderr.write("%s\n" % err)
-        usage()
-        sys.exit(_EXITCODE_INVALID_ARG)
+        raise InvalidArgument(err)
+
+    if args:
+        raise InvalidArgument(' '.join(args))
 
     config = {
         Conf.Infile: DEFAULT_INFILE,
