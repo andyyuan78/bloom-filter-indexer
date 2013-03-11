@@ -198,6 +198,9 @@ def validate_false_positive_rate(arg):
 def validate_delimiter(arg):
     """
     Validate that the delimiter is a single character.
+    >>> validate_delimiter(';')
+    ';'
+
     >>> validate_delimiter(';;')
     Traceback (most recent call last):
     ...
@@ -240,10 +243,18 @@ def validate_fields(arg):
 def validate_skip_lines(arg):
     """
     Convert to integer and validate that the value is >= 0
+    >>> validate_skip_lines('2')
+    2
+
     >>> validate_skip_lines(-1)
     Traceback (most recent call last):
     ...
     InvalidArgument: skip-lines must be positive: '-1'
+
+    >>> validate_skip_lines('one')
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: skip-lines not an integer: 'one'
     """
     try:
         lines = int(arg)
