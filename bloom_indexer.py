@@ -320,16 +320,16 @@ def debug(text):
         sys.stderr.write(text)
 
 
-def create_index(infile, csvfile, error_rate, skip_lines, limit_columns,
+def create_index(infile, csvfile, error_rate, skip_lines, limit_fields,
                  delimiter, recursive_domains):
     """
     Parse the file-like object given by csvfile using the csv module. Add each
-    unique entry in each field/column (specified by limit_columns) to a bloom
+    unique entry in each field/column (specified by limit_fields) to a bloom
     filter and save with a filename derived from the input filenamd and field.
     """
 
     column_values_map = parse_csv_file(
-        csvfile, delimiter, recursive_domains, limit_columns, skip_lines)
+        csvfile, delimiter, recursive_domains, limit_fields, skip_lines)
 
     index_stats = {}
     for (column_number, values) in column_values_map.items():
@@ -343,7 +343,7 @@ def create_index(infile, csvfile, error_rate, skip_lines, limit_columns,
     return index_stats
 
 
-def parse_csv_file(csvfile, delimiter, recursive_domains, limit_columns,
+def parse_csv_file(csvfile, delimiter, recursive_domains, limit_fields,
                    skip_lines):
     """
     Opens the file-like-object with the CSV reader module and advances past
@@ -354,10 +354,10 @@ def parse_csv_file(csvfile, delimiter, recursive_domains, limit_columns,
     csv_reader = csv.reader(csvfile, delimiter=delimiter, quotechar='|')
     skip_header_lines(csv_reader, skip_lines)
 
-    return get_values_by_column(csv_reader, limit_columns, recursive_domains)
+    return get_values_by_column(csv_reader, limit_fields, recursive_domains)
 
 
-def get_values_by_column(csv_reader, limit_columns, expand_domains=False):
+def get_values_by_column(csv_reader, limit_fields, expand_domains=False):
     """
     From a CSV reader object, returns a dictionary where the column number
     (1-indexed) maps to a list of values for that column. If a value is a valid
@@ -374,7 +374,7 @@ def get_values_by_column(csv_reader, limit_columns, expand_domains=False):
     data = defaultdict(list)
     for row in csv_reader:
         for (column_number, value) in enumerate(row, start=1):
-            if limit_columns and column_number not in limit_columns:
+            if limit_fields and column_number not in limit_fields:
                 continue
 
             if expand_domains and is_domain(value):
