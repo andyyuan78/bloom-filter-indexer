@@ -28,7 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 DEFAULT_INFILE = None  # None makes this argument mandatory
-DEFAULT_FIELDS = None  # None makes this argument mandatory
+DEFAULT_FIELDS = []    # Empty list means 'all'
 DEFAULT_SKIP_LINES = 1
 DEFAULT_FALSE_POSITIVE_RATE = 0.00001
 DEFAULT_DELIMITER = ';'
@@ -219,10 +219,14 @@ def validate_delimiter(arg):
 def validate_fields(arg):
     """
     Convert a comma-separated string of integers into a list, checking that
-    each is greater than zero.
+    each is greater than zero. The special value 'all' should return an
+    empty list.
 
     >>> validate_fields('1,2,3')
     [1, 2, 3]
+
+    >>> validate_fields('all')
+    []
 
     >>> validate_fields('foo')
     Traceback (most recent call last):
@@ -234,6 +238,9 @@ def validate_fields(arg):
     ...
     InvalidArgument: fields must all be > zero: '0,1,2'
     """
+    if arg.lower() == 'all':
+        return []
+
     try:
         fields = [int(field) for field in arg.split(',')]
     except ValueError:
@@ -274,11 +281,11 @@ def validate_skip_lines(arg):
 
 def usage():
     text = (
-        "\nUsage: %s --infile=<file.csv> --fields=1,2,5\n\n"
+        "\nUsage: %s -v -i <file.csv>\n\n"
         "  -i, --infile=FILENAME            "
         "open the CSV given by FILENAME\n"
         "  -f, --fields=field1,field2       "
-        "fields/columns to index, eg 1,2,5\n"
+        "fields/columns to index, eg 1,2,5 [default all]\n"
         "  -s, --skip-lines=NUMBER          "
         "skip NUMBER rows of header data from the top of the CSV file\n"
         "  -e, --false-positive-rate=RATE   "

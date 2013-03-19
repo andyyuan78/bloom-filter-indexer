@@ -150,26 +150,14 @@ class ParseArgumentsTest(unittest.TestCase):
                 '--delimiter=,',
                 '--index-domains-recursively']))
 
-    def test_missing_fields(self):
-        self.assertRaises(
-            MissingArgument,
-            lambda: parse_arguments([
-                'fake.py',
-                '--infile=/etc/profile',
-                '--skip-lines=3',
-                '--false-positive-rate=0.00123',
-                '--delimiter=,',
-                '--index-domains-recursively']))
-
     def test_defaults(self):
         config = parse_arguments([
             'fake.py',
-            '--infile=/etc/profile',
-            '--fields=2,6'])
+            '--infile=/etc/profile'])
         self.assertEqual(
             {'delimiter': ';',
              'false-positive-rate': 1e-05,
-             'fields': [2, 6],
+             'fields': [],  # meaning all
              'index-domains-recursively': False,
              'infile': '/etc/profile',
              'skip-lines': 1},
