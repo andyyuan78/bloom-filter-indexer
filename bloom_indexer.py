@@ -77,6 +77,13 @@ class MissingArgument(Exception):
 def main():
     try:
         config = parse_arguments(sys.argv)
+        if not config:
+            sys.exit(_EXITCODE_OK)
+
+        bloom_filters = open_and_create(config)
+
+        for (outfile, num_entries) in bloom_filters.items():
+            debug("%s : %s entries\n" % (outfile, num_entries))
 
     except InvalidArgument, e:
         sys.stderr.write("\nInvalid argument: %s\n" % e)
@@ -87,14 +94,6 @@ def main():
         sys.stderr.write("\nMissing required argument(s): %s\n" % e)
         usage()
         sys.exit(_EXITCODE_MISSING_ARG)
-
-    if not config:
-        sys.exit(_EXITCODE_OK)
-
-    bloom_filters = open_and_create(config)
-
-    for (outfile, num_entries) in bloom_filters.items():
-        debug("%s : %s entries\n" % (outfile, num_entries))
 
 
 def open_and_create(config):
@@ -302,7 +301,7 @@ def usage():
         "  -e, --false-positive-rate=RATE   "
         "error rate of bloom filter, [default %f]\n"
         "  -d, --delimiter=SYMBOL           "
-        "CSV delimiter character [default %s]\n"
+        "CSV delimiter character (may need escaping) [default %s]\n"
         "  -r, --index-domains-recursively  "
         "expand domains to subdomain components [default %s].\n"
         "  -v, --verbose                    "
@@ -351,10 +350,32 @@ def parse_csv_file(csvfile, delimiter, recursive_domains, limit_fields,
     the values into a list-per-column format.
     """
 
+    debug("Opening CSV with delimiter %s" % delimiter)
     csv_reader = csv.reader(csvfile, delimiter=delimiter, quotechar='|')
     skip_header_lines(csv_reader, skip_lines)
 
     return get_values_by_column(csv_reader, limit_fields, recursive_domains)
+
+
+def check_field_numbers_all_in_row(row, limit_fields):
+    """
+    Validate that each integer in limit_fields ie [1,2,3] refers to a valid
+    column/field in the given row, which is a list of strings.
+
+    >>> check_field_numbers_all_in_row(['a', 'b', 'c'], [1,2,3])
+
+    >>> check_field_numbers_all_in_row(['a', 'b', 'c'], [1,2,3,4])
+    Traceback (most recent call last):
+    ...
+    InvalidArgument: Field 4 invalid for 3-field CSV file.
+    """
+
+    for field_number in limit_fields:
+        try:
+            row[field_number - 1]
+        except IndexError:
+            raise InvalidArgument("Field %d invalid for %d-field CSV file." % (
+                field_number, len(row)))
 
 
 def get_values_by_column(csv_reader, limit_fields, expand_domains=False):
@@ -364,7 +385,7 @@ def get_values_by_column(csv_reader, limit_fields, expand_domains=False):
     domain name, is it resursively expanded, according to the expand_domains
     flag.
 
-    >>> get_values_by_column([['Red', 'Apple'], ['Blue', 'Banana']], None)
+    >>> get_values_by_column([['Red', 'Apple'], ['Blue', 'Banana']], [])
     {1: ['Red', 'Blue'], 2: ['Apple', 'Banana']}
 
     >>> get_values_by_column([['Red', 'Apple'], ['Blue', 'Banana']], [1])
@@ -373,6 +394,7 @@ def get_values_by_column(csv_reader, limit_fields, expand_domains=False):
 
     data = defaultdict(list)
     for row in csv_reader:
+        check_field_numbers_all_in_row(row, limit_fields)  # raises
         for (column_number, value) in enumerate(row, start=1):
             if limit_fields and column_number not in limit_fields:
                 continue

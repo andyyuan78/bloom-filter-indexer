@@ -34,7 +34,8 @@ import glob
 from cStringIO import StringIO
 from pybloom import BloomFilter
 
-from bloom_indexer import (parse_arguments, create_index, MissingArgument)
+from bloom_indexer import (parse_arguments, create_index, MissingArgument,
+                           InvalidArgument)
 
 TEST_FILE_CONTENT = (
     "FieldA,FieldB,FieldC\n"
@@ -100,6 +101,18 @@ class TopLevelTest(unittest.TestCase):
                      'example.domain.com', 'domain.com', 'www.google.co.uk',
                      'google.co.uk', 'co.uk', 'uk'):
             self.assertEqual(True, word in b)
+
+    def test_higher_field_than_column_count(self):
+        self.assertRaises(
+            InvalidArgument,
+            lambda: create_index(
+                '/tmp/fake.csv',  # input filename
+                self.test_file,   # file-like object
+                0.0001,           # error rate
+                1,                # skip lines
+                [4],              # fields
+                ',',              # delimiter
+                False))           # recursive domain
 
 
 class ParseArgumentsTest(unittest.TestCase):
