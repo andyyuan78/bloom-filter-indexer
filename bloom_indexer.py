@@ -91,7 +91,19 @@ def main():
     if not config:
         sys.exit(_EXITCODE_OK)
 
-    with open(config[Conf.Infile], 'r') as csvfile:
+    bloom_filters = open_and_create(config)
+
+    for (outfile, num_entries) in bloom_filters.items():
+        debug("%s : %s entries\n" % (outfile, num_entries))
+
+
+def open_and_create(config):
+    """
+    Open the CSV file in the validated config dictionary and create the bloom
+    filter index.
+    """
+
+    with open(config[Conf.Infile], 'rU') as csvfile:
         result = create_index(
             config[Conf.Infile],
             csvfile,
@@ -101,8 +113,7 @@ def main():
             config[Conf.Delimiter],
             config[Conf.IndexDomainsRecursively])
 
-    for (outfile, num_entries) in result.items():
-        debug("%s : %s entries\n" % (outfile, num_entries))
+    return result
 
 
 def parse_arguments(argv):
