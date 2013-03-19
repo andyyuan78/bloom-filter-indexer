@@ -343,7 +343,7 @@ def parse_csv_file(csvfile, delimiter, recursive_domains, limit_fields,
     the values into a list-per-column format.
     """
 
-    debug("Opening CSV with delimiter %s" % delimiter)
+    debug("Opening CSV with delimiter %s\n" % delimiter)
     csv_reader = csv.reader(csvfile, delimiter=delimiter, quotechar='|')
     skip_header_lines(csv_reader, skip_lines)
 
