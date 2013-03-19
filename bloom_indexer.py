@@ -48,13 +48,6 @@ import getopt
 from collections import defaultdict
 from isdomain import is_domain
 
-try:
-    from pybloom import BloomFilter
-except ImportError, e:
-    sys.stderr.write("\nError: Failed to import pybloom: %s\n"
-                     "Have you installed 'python-bloomfilter'?\n\n" % e)
-    sys.exit(_EXITCODE_IMPORT_ERROR)
-
 
 class Conf:
     """Provides the keys to the config dictionary."""
@@ -464,4 +457,12 @@ def write_bloom_filter(bloom_filter, out_filename):
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        from pybloom import BloomFilter
+    except ImportError, e:
+        sys.stderr.write("\nError: Failed to import pybloom: %s\n"
+                         "Have you installed 'python-bloomfilter'?\n\n" % e)
+        usage()
+        sys.exit(_EXITCODE_IMPORT_ERROR)
+    else:
+        main()
